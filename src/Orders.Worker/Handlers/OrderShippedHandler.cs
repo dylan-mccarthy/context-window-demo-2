@@ -2,18 +2,20 @@ using Orders.Worker.Audit;
 
 namespace Orders.Worker.Handlers;
 
-public sealed class OrderShippedHandler
+public sealed class OrderShippedHandler(IAuditSink auditSink)
 {
-    public Task HandleAsync(
+    public async Task HandleAsync(
         string orderId,
         string shipmentId,
         string carrier,
         string trackingNumber,
         CancellationToken cancellationToken)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        LegacyAudit.Write("order.shipped", orderId, new { shipmentId, carrier });
-        LegacyAudit.Write("shipment.tracking-assigned", orderId, new { shipmentId, trackingNumber });
-        return Task.CompletedTask;
+        await auditSink.WriteAsync(
+            new AuditEvent("order.shipped", orderId, new { shipmentId, carrier }),
+            cancellationToken);
+        await auditSink.WriteAsync(
+            new AuditEvent("shipment.tracking-assigned", orderId, new { shipmentId, trackingNumber }),
+            cancellationToken);
     }
 }

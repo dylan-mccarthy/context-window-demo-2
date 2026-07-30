@@ -2,18 +2,20 @@ using Orders.Worker.Audit;
 
 namespace Orders.Worker.Handlers;
 
-public sealed class RefundCompletedHandler
+public sealed class RefundCompletedHandler(IAuditSink auditSink)
 {
-    public Task HandleAsync(
+    public async Task HandleAsync(
         string orderId,
         string refundId,
         decimal amount,
         string providerReference,
         CancellationToken cancellationToken)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        LegacyAudit.Write("refund.completed", orderId, new { refundId, amount, providerReference });
-        LegacyAudit.Write("payment.refunded", orderId, new { refundId, amount });
-        return Task.CompletedTask;
+        await auditSink.WriteAsync(
+            new AuditEvent("refund.completed", orderId, new { refundId, amount, providerReference }),
+            cancellationToken);
+        await auditSink.WriteAsync(
+            new AuditEvent("payment.refunded", orderId, new { refundId, amount }),
+            cancellationToken);
     }
 }

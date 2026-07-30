@@ -2,17 +2,19 @@ using Orders.Worker.Audit;
 
 namespace Orders.Worker.Handlers;
 
-public sealed class OrderCancelledHandler
+public sealed class OrderCancelledHandler(IAuditSink auditSink)
 {
-    public Task HandleAsync(
+    public async Task HandleAsync(
         string orderId,
         string reason,
         string cancelledBy,
         CancellationToken cancellationToken)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        LegacyAudit.Write("order.cancelled", orderId, new { reason, cancelledBy });
-        LegacyAudit.Write("fulfilment.stopped", orderId, new { reason });
-        return Task.CompletedTask;
+        await auditSink.WriteAsync(
+            new AuditEvent("order.cancelled", orderId, new { reason, cancelledBy }),
+            cancellationToken);
+        await auditSink.WriteAsync(
+            new AuditEvent("fulfilment.stopped", orderId, new { reason }),
+            cancellationToken);
     }
 }

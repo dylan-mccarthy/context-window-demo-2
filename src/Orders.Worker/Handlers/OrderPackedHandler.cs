@@ -2,17 +2,19 @@ using Orders.Worker.Audit;
 
 namespace Orders.Worker.Handlers;
 
-public sealed class OrderPackedHandler
+public sealed class OrderPackedHandler(IAuditSink auditSink)
 {
-    public Task HandleAsync(
+    public async Task HandleAsync(
         string orderId,
         string packageId,
         int itemCount,
         CancellationToken cancellationToken)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        LegacyAudit.Write("order.packed", orderId, new { packageId, itemCount });
-        LegacyAudit.Write("package.labelled", orderId, new { packageId });
-        return Task.CompletedTask;
+        await auditSink.WriteAsync(
+            new AuditEvent("order.packed", orderId, new { packageId, itemCount }),
+            cancellationToken);
+        await auditSink.WriteAsync(
+            new AuditEvent("package.labelled", orderId, new { packageId }),
+            cancellationToken);
     }
 }
