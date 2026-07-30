@@ -11,10 +11,11 @@ public sealed class HandlerAuditTests
     {
         var events = new List<AuditEvent>();
         using var capture = LegacyAudit.Capture(events);
+        var auditSink = new RecordingAuditSink(events);
         var cancellationToken = CancellationToken.None;
 
-        await new OrderCreatedHandler().HandleAsync("order-1", "customer-1", "web", cancellationToken);
-        await new PaymentAcceptedHandler().HandleAsync("order-1", "payment-1", 125.50m, cancellationToken);
+        await new OrderCreatedHandler(auditSink).HandleAsync("order-1", "customer-1", "web", cancellationToken);
+        await new PaymentAcceptedHandler(auditSink).HandleAsync("order-1", "payment-1", 125.50m, cancellationToken);
         await new PaymentRejectedHandler().HandleAsync("order-2", "payment-2", "declined", cancellationToken);
         await new OrderPackedHandler().HandleAsync("order-1", "package-1", 3, cancellationToken);
         await new OrderShippedHandler().HandleAsync("order-1", "shipment-1", "ParcelCo", "TRACK-1", cancellationToken);
@@ -45,5 +46,15 @@ public sealed class HandlerAuditTests
         Assert.Equal(eventName, auditEvent.EventName);
         var payload = JsonSerializer.SerializeToElement(auditEvent.Payload);
         Assert.Equal(value, payload.GetProperty(field).ToString());
+    }
+
+    private sealed class RecordingAuditSink(ICollection<AuditEvent> events) : IAuditSink
+    {
+        public Task WriteAsync(AuditEvent auditEvent, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            events.Add(auditEvent);
+            return Task.CompletedTask;
+        }
     }
 }

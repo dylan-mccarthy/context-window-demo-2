@@ -2,17 +2,19 @@ using Orders.Worker.Audit;
 
 namespace Orders.Worker.Handlers;
 
-public sealed class OrderCreatedHandler
+public sealed class OrderCreatedHandler(IAuditSink auditSink)
 {
-    public Task HandleAsync(
+    public async Task HandleAsync(
         string orderId,
         string customerId,
         string salesChannel,
         CancellationToken cancellationToken)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        LegacyAudit.Write("order.created", orderId, new { customerId, salesChannel });
-        LegacyAudit.Write("order.received", orderId, new { customerId });
-        return Task.CompletedTask;
+        await auditSink.WriteAsync(
+            new AuditEvent("order.created", orderId, new { customerId, salesChannel }),
+            cancellationToken);
+        await auditSink.WriteAsync(
+            new AuditEvent("order.received", orderId, new { customerId }),
+            cancellationToken);
     }
 }

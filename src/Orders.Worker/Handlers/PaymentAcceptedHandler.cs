@@ -2,17 +2,19 @@ using Orders.Worker.Audit;
 
 namespace Orders.Worker.Handlers;
 
-public sealed class PaymentAcceptedHandler
+public sealed class PaymentAcceptedHandler(IAuditSink auditSink)
 {
-    public Task HandleAsync(
+    public async Task HandleAsync(
         string orderId,
         string paymentId,
         decimal amount,
         CancellationToken cancellationToken)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        LegacyAudit.Write("payment.accepted", orderId, new { paymentId, amount });
-        LegacyAudit.Write("order.paid", orderId, new { paymentId });
-        return Task.CompletedTask;
+        await auditSink.WriteAsync(
+            new AuditEvent("payment.accepted", orderId, new { paymentId, amount }),
+            cancellationToken);
+        await auditSink.WriteAsync(
+            new AuditEvent("order.paid", orderId, new { paymentId }),
+            cancellationToken);
     }
 }
